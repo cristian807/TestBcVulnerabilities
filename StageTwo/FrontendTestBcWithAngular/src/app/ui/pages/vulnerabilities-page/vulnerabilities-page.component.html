@@ -1,0 +1,225 @@
+<section class="max-w-7xl mx-auto">
+
+  <header class="flex items-end justify-between gap-4 mb-5 animate-rise">
+    <div>
+      <p class="m-0 tracking-[0.12em] uppercase text-[0.74rem] font-bold text-slate">Inventario unificado</p>
+      <h1 class="my-1 font-display text-[clamp(1.8rem,2.6vw,2.8rem)] leading-none">Vulnerabilidades CISA / Nuclei</h1>
+      <p class="m-0 text-[#4f5860]">Gestiona CVEs en una vista clara, ordenada y lista para analisis tecnico.</p>
+    </div>
+    <div class="border border-line rounded-2xl py-3.5 px-5 bg-panel min-w-30 text-right shrink-0">
+      <span class="block text-[0.76rem] text-[#5f6670] uppercase tracking-[0.08em]">Total CVEs</span>
+      <strong class="font-display text-[2rem]">{{ total() }}</strong>
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    <p class="border border-[#f0b1b1] bg-[#fff1f1] text-danger px-4 py-3 rounded-xl mb-4">{{ message }}</p>
+  }
+
+  <section class="grid grid-cols-[360px_1fr] gap-4 max-[980px]:grid-cols-1">
+
+    <article class="bg-panel border border-line rounded-2xl p-4 shadow-[0_10px_30px_rgba(16,16,20,0.05)]">
+      <h2 class="mt-0 mb-3.5 font-display text-[1.15rem]">
+        {{ editingId() ? 'Editar vulnerabilidad' : 'Crear vulnerabilidad' }}
+      </h2>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-2.5">
+
+        <div class="flex gap-2 items-end">
+          <label class="flex-1 m-0 flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            CVE ID
+            <input type="text" formControlName="cveId" placeholder="CVE-2026-12345" />
+          </label>
+          <button
+            type="button"
+            class="px-3 py-2 bg-mint text-white font-bold border-0 rounded-xl cursor-pointer whitespace-nowrap h-fit hover:bg-[#005f5b] disabled:opacity-55 disabled:cursor-not-allowed"
+            (click)="searchVulnerability()"
+            [disabled]="searching()">
+            {{ searching() ? 'Buscando...' : 'Buscar' }}
+          </button>
+        </div>
+
+        @if (searchError(); as message) {
+          <p class="px-3 py-2 bg-[#fff1f1] border border-[#f0b1b1] rounded-xl text-danger m-0 text-[0.84rem]">{{ message }}</p>
+        }
+
+        <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+          Titulo
+          <input type="text" formControlName="title" placeholder="Falla de deserializacion" />
+        </label>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            Severidad
+            <select formControlName="severity">
+              @for (s of severityOptions; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </label>
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            Estado
+            <select formControlName="status">
+              @for (s of statusOptions; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            CVSS
+            <input type="number" formControlName="cvssScore" min="0" max="10" step="0.1" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            Producto
+            <input type="text" formControlName="affectedProduct" placeholder="Spring Framework" />
+          </label>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            Vendor
+            <input type="text" formControlName="affectedVendor" placeholder="VMware" />
+          </label>
+          <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+            Version
+            <input type="text" formControlName="affectedVersion" placeholder="5.3.x" />
+          </label>
+        </div>
+
+        <label class="flex flex-col gap-1.5 text-[0.84rem] text-[#414b55]">
+          Remediacion
+          <textarea rows="3" formControlName="remediation" placeholder="Actualizar a version segura"></textarea>
+        </label>
+
+        <fieldset class="border border-dashed border-line rounded-xl p-2.5 flex gap-2 m-0">
+          <legend class="text-[0.84rem] text-[#414b55] px-1">Fuentes</legend>
+          @for (source of sourceOptions; track source) {
+            <label class="inline-flex flex-row items-center gap-1.5 px-2 py-1 rounded-full bg-[#f7f1e8] text-[0.84rem] text-[#414b55] cursor-pointer">
+              <input
+                type="checkbox"
+                class="w-auto! p-0! border-0! rounded-none! bg-transparent! cursor-pointer"
+                [checked]="form.controls.sourceTypes.value.includes(source)"
+                (change)="toggleSource(source)"
+              />
+              <span>{{ source }}</span>
+            </label>
+          }
+        </fieldset>
+
+        <div class="flex gap-2 mt-0.5">
+          <button
+            type="submit"
+            class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-accent text-white font-bold disabled:opacity-55 disabled:cursor-not-allowed"
+            [disabled]="saving()">
+            {{ editingId() ? 'Actualizar' : 'Crear' }}
+          </button>
+          <button
+            type="button"
+            class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-[#efe7db] text-[#303942] font-bold"
+            (click)="resetForm()">
+            Limpiar
+          </button>
+        </div>
+
+      </form>
+    </article>
+
+    <article class="bg-panel border border-line rounded-2xl p-4 shadow-[0_10px_30px_rgba(16,16,20,0.05)] animate-rise-slow">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="mt-0 mb-0 font-display text-[1.15rem]">Listado de CVEs</h2>
+        <button
+          type="button"
+          class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-[#efe7db] text-[#303942] font-bold disabled:opacity-55 disabled:cursor-not-allowed"
+          (click)="loadVulnerabilities()"
+          [disabled]="loading()">
+          Recargar
+        </button>
+      </div>
+
+      @if (loading()) {
+        <p class="text-[#566069] my-4">Cargando inventario...</p>
+      } @else if (vulnerabilities().length === 0) {
+        <p class="text-[#566069] my-4">Aun no hay vulnerabilidades registradas.</p>
+      } @else {
+        <div class="w-full overflow-x-auto">
+          <table class="w-full border-collapse min-w-180">
+            <thead>
+              <tr>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">CVE</th>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">Titulo</th>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">Severidad</th>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">CVSS</th>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">Fuentes</th>
+                <th class="text-left py-2.5 px-2 border-b border-line align-middle text-[#5d6770] text-[0.78rem] uppercase tracking-[0.08em]">Estado</th>
+                <th class="py-2.5 px-2 border-b border-line"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of vulnerabilities(); track trackById($index, item)) {
+                <tr>
+                  <td class="py-2.5 px-2 border-b border-line align-middle text-[0.87rem]">{{ item.cveId }}</td>
+                  <td class="py-2.5 px-2 border-b border-line align-middle text-[0.87rem] max-w-50 truncate">{{ item.title }}</td>
+
+                  <td class="py-2.5 px-2 border-b border-line align-middle">
+                    <span
+                      class="inline-flex rounded-full px-2 py-0.5 text-[0.72rem] font-bold"
+                      [ngClass]="{
+                        'bg-[#eef7f0] text-[#1d6b28]': item.severity === 'LOW',
+                        'bg-[#fff6db] text-[#805500]': item.severity === 'MEDIUM',
+                        'bg-[#ffe7d3] text-[#9f3500]': item.severity === 'HIGH',
+                        'bg-[#ffdfe0] text-[#a20023]': item.severity === 'CRITICAL'
+                      }">
+                      {{ item.severity }}
+                    </span>
+                  </td>
+
+                  <td class="py-2.5 px-2 border-b border-line align-middle text-[0.87rem]">{{ item.cvssScore ?? '—' }}</td>
+
+                  <td class="py-2.5 px-2 border-b border-line align-middle">
+                    <div class="inline-flex gap-1.5">
+                      @if (hasSource(item, 'CISA')) {
+                        <span class="rounded-full px-2 py-0.5 text-[0.72rem] font-bold bg-accent-soft text-accent">CISA</span>
+                      }
+                      @if (hasSource(item, 'NUCLEI')) {
+                        <span class="rounded-full px-2 py-0.5 text-[0.72rem] font-bold bg-mint-soft text-mint">Nuclei</span>
+                      }
+                    </div>
+                  </td>
+
+                  <td class="py-2.5 px-2 border-b border-line align-middle">
+                    <span
+                      class="inline-flex rounded-full px-2 py-0.5 text-[0.72rem] font-bold"
+                      [ngClass]="{
+                        'bg-mint-soft text-mint':      item.status === 'ACTIVE',
+                        'bg-[#ededee] text-[#565a60]': item.status === 'ARCHIVED'
+                      }">
+                      {{ item.status }}
+                    </span>
+                  </td>
+
+                  <td class="py-2.5 px-2 border-b border-line align-middle">
+                    <div class="inline-flex gap-1.5">
+                      <button type="button" class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-[#e8eef7] text-[#1a3a6b] font-bold hover:bg-[#d0dcf0]" (click)="openDetail(item)">Ver</button>
+                      <button type="button" class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-[#efe7db] text-[#303942] font-bold" (click)="startEdit(item)">Editar</button>
+                      <button type="button" class="border-0 rounded-xl px-3 py-2 cursor-pointer bg-[#ffe5e5] text-danger font-bold" (click)="remove(item)">Eliminar</button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+
+  </section>
+</section>
+
+<app-vulnerability-detail-modal
+  [vulnerability]="viewingItem()"
+  (closeModal)="closeDetail()"
+/>
+
